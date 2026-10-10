@@ -92,6 +92,26 @@ def test_submit_bulk_request_allows_per_card_variants(tmp_path, monkeypatch):
     assert variants_by_card["Mew (FCO 29)"] == "Default"
 
 
+def test_submit_bulk_request_allows_per_card_variants_without_default_variant(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    create_user("person", "secret", "Person", "person@example.com")
+    client = app.test_client()
+    login(client)
+
+    resp = client.post("/requests", data={
+        "bulk_cards": "Misty's Starmie (DRI 047) - Reverse Holo\n2 Cramorant (LOR 050) - Holo",
+        "language": "English",
+        "minimum_condition": "Near Mint",
+        "seller": "bubusini",
+    }, follow_redirects=True)
+
+    assert resp.status_code == 200
+    assert b"Submitted 2 request lines." in resp.data
+    variants_by_card = {row["card_name_code"]: row["variant"] for row in list_requests()}
+    assert variants_by_card["Misty's Starmie (DRI 047)"] == "Reverse Holo"
+    assert variants_by_card["Cramorant (LOR 050)"] == "Holo"
+
+
 def test_admin_can_create_user_from_web(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
     create_user("admin", "secret", "Admin", "admin@example.com", is_admin=True)
