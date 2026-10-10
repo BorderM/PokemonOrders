@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      POKEMONORDERS_DB: /data/pokemonorders.db
+      FLASK_ENV: development
+    volumes:
+      - pokemonorders-data:/data
+      - ./uploads:/uploads
+
+volumes:
+  pokemonorders-data:

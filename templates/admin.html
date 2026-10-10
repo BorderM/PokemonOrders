@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Admin · PokemonOrders{% endblock %}
+{% block content %}
+<section class="hero card compact">
+  <div>
+    <p class="eyebrow">Admin</p>
+    <h1>Orders dashboard</h1>
+    <p>Import the existing Excel workbook, review requesters, and track order rows.</p>
+  </div>
+</section>
+
+<section class="metric-grid">
+  <div class="metric card"><strong>{{ stats.requests }}</strong><span>Requests</span></div>
+  <div class="metric card"><strong>{{ stats.quantity }}</strong><span>Total quantity</span></div>
+  <div class="metric card"><strong>{{ stats.people }}</strong><span>People</span></div>
+  <div class="metric card"><strong>{{ stats.priced_entries }}</strong><span>Pricing rows</span></div>
+  <div class="metric card"><strong>€{{ '%.2f'|format(stats.priced_value or 0) }}</strong><span>Priced total</span></div>
+</section>
+
+<section class="layout">
+  <div class="card">
+    <h2>Import Excel</h2>
+    <p class="muted">Upload the current workbook. The importer reads People, Orders_Clean, Pricing/archive sheets, and Shipping_Rules.</p>
+    <form method="post" action="{{ url_for('import_excel') }}" enctype="multipart/form-data" class="import-form">
+      <input type="file" name="workbook" accept=".xlsx" required>
+      <button class="primary" type="submit">Import workbook</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>People</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Email</th></tr></thead>
+      <tbody>{% for person in people %}<tr><td>{{ person.name }}</td><td>{{ person.email }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Requests</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Requester</th><th>Card/Product</th><th>Qty</th><th>Language</th><th>Condition</th><th>Variant</th><th>Seller</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for row in requests %}
+        <tr><td>{{ row.id }}</td><td>{{ row.name }}</td><td>{{ row.card_name_code }}</td><td>{{ row.quantity }}</td><td>{{ row.language }}</td><td>{{ row.minimum_condition }}</td><td>{{ row.variant }}</td><td>{{ row.seller or row.new_seller or '' }}</td><td>{{ row.status }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Poke Requests · PokemonOrders{% endblock %}
+{% block content %}
+<section class="hero card">
+  <div>
+    <p class="eyebrow">Poke Requests</p>
+    <h1>Card and product request form</h1>
+    <p>Submit cards, sealed products, preferred condition, variant, quantity, seller, and notes. Email is used as the flexible requester identity.</p>
+  </div>
+  <div class="stats-mini">
+    <strong>{{ stats.requests }}</strong><span>requests</span>
+    <strong>{{ stats.people }}</strong><span>people</span>
+  </div>
+</section>
+
+<section class="layout">
+  <form class="card request-form" method="post" action="{{ url_for('submit_request') }}">
+    <label>Email <b>*</b><input required name="email" type="email" placeholder="you@example.com"></label>
+    <label>Name<input name="name" placeholder="Optional display name"></label>
+    <label class="wide">Card Name + code <b>*</b><input required name="card_name_code" placeholder="Misty's Starmie (DRI 047)"></label>
+    <label>Language <b>*</b><select required name="language">{% for item in languages %}<option>{{ item }}</option>{% endfor %}</select></label>
+    <label>Quantity <b>*</b><select required name="quantity">{% for item in quantities %}<option>{{ item }}</option>{% endfor %}</select></label>
+    <label>Minimum Condition / Type <b>*</b><select required name="minimum_condition">{% for item in conditions %}<option>{{ item }}</option>{% endfor %}</select></label>
+    <label>Variant <b>*</b><select required name="variant">{% for item in variants %}<option>{{ item }}</option>{% endfor %}</select></label>
+    <label>Specific Seller<select name="seller"><option value="">No preference</option>{% for item in sellers %}<option>{{ item }}</option>{% endfor %}</select></label>
+    <label>New Seller<input name="new_seller" placeholder="If not listed"></label>
+    <label class="wide">Notes<textarea name="notes" placeholder="Anything else?"></textarea></label>
+    <button class="primary" type="submit">Submit request</button>
+  </form>
+
+  <aside class="card">
+    <h2>Recent requests</h2>
+    <div class="recent-list">
+      {% for row in recent %}
+        <article>
+          <strong>{{ row.card_name_code }}</strong>
+          <span>{{ row.name }} · Qty {{ row.quantity }} · {{ row.minimum_condition }} · {{ row.variant }}</span>
+        </article>
+      {% else %}
+        <p>No requests yet.</p>
+      {% endfor %}
+    </div>
+  </aside>
+</section>
+{% endblock %}
