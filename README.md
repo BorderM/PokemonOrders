@@ -30,10 +30,10 @@ The uploaded `Poke_Order.xlsx` contains sheets such as:
 1. Admin creates a user login for each requester.
 2. Requester logs in on desktop or mobile.
 3. Requester pastes one or more cards/products into the batch box.
-4. Shared fields apply to the whole batch:
+4. Shared fields apply to the whole batch unless a line overrides the variant:
    - language
    - condition/type
-   - variant
+   - default variant
    - seller/new seller
    - notes
 5. App stores separate request rows linked to the logged-in user.
@@ -42,10 +42,12 @@ The uploaded `Poke_Order.xlsx` contains sheets such as:
 Bulk entry examples:
 
 ```text
-Misty's Starmie (DRI 047)
-2 Cramorant (LOR 050)
+Misty's Starmie (DRI 047) - Reverse Holo
+2 Cramorant (LOR 050) - Holo
 Black Bolt JP Booster Box
 ```
+
+Use `- Variant` when a specific line needs a different variant. Lines without a recognized variant after the hyphen use the selected default variant, so card names like `Boss's Orders - Ghetsis` stay intact.
 
 ## Run with Docker Compose
 
@@ -59,19 +61,34 @@ http://localhost:8000
 
 Data is stored in a SQLite database under the Docker volume `pokemonorders-data`.
 
-## Create the first admin user
+## Default admin user
 
-After the container is running:
+The app creates a default admin login automatically:
 
-```bash
-docker compose exec web flask --app pokemonorders.app create-user admin CHANGE_ME --name "Admin" --admin
+```text
+username: admin
+password: admin
 ```
 
-Local equivalent:
+This keeps local/dev setup simple. Change it later from the admin user form or by running `create-user` again with a stronger password.
+
+CLI example:
 
 ```bash
-flask --app pokemonorders.app create-user admin CHANGE_ME --name "Admin" --admin
+flask --app pokemonorders.app create-user admin NEW_PASSWORD --name "Admin" --admin
 ```
+
+Docker equivalent:
+
+```bash
+docker compose exec web flask --app pokemonorders.app create-user admin NEW_PASSWORD --name "Admin" --admin
+```
+
+## Public/requester access
+
+- Anyone can view the request overview and quantities.
+- Users must log in to add requests, so their cards attach to the right person automatically.
+- Admin users can create logins, import Excel, and paste Cardmarket receipt/pricing data.
 
 ## Run locally without Docker
 
@@ -80,7 +97,6 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 flask --app pokemonorders.app init-db
-flask --app pokemonorders.app create-user admin CHANGE_ME --name "Admin" --admin
 flask --app pokemonorders.app run --debug
 ```
 
@@ -95,6 +111,19 @@ flask --app pokemonorders.app import-xlsx /path/to/Poke_Order.xlsx
 ```
 
 The importer does not need the original file committed to the repo. Do **not** commit real order spreadsheets because they contain personal emails/order data.
+
+## Paste Cardmarket receipt pricing
+
+Admins can paste receipt text in the admin page. The parser supports receipt blocks like:
+
+```text
+1x    Magnezone Lv.48 (DP 8)
+#8
+EX
+    3,99 €
+```
+
+It converts condition codes such as `EX`, `GD`, and `NM`, parses comma-decimal euro prices, and stores quantity, card/product, condition, unit price, and total price as pricing entries.
 
 ## Tests
 

@@ -8,6 +8,7 @@ from flask import Flask, flash, g, redirect, render_template, request, session, 
 from werkzeug.security import check_password_hash
 
 from .db import (
+    add_pricing_rows,
     create_request,
     create_user,
     dashboard_stats,
@@ -15,10 +16,12 @@ from .db import (
     get_user_by_username,
     init_db,
     list_people,
+    list_pricing_entries,
     list_requests,
     list_users,
 )
 from .importer import import_workbook
+from .pricing import parse_cardmarket_receipt
 
 LANGUAGES = ["English", "Japanese", "German", "French", "Italian", "Spanish", "Any"]
 QUANTITIES = list(range(1, 13))
@@ -27,12 +30,22 @@ VARIANTS = ["Default", "Reverse Holo", "Holo", "Cosmo", "Ball Reverse", "Other"]
 SELLERS = ["bubusini", "cardmarket", "specific seller not needed"]
 
 
-def parse_bulk_cards(text: str) -> list[tuple[int, str]]:
-    cards: list[tuple[int, str]] = []
+def parse_bulk_cards(text: str) -> list[dict]:
+    cards: list[dict] = []
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
             continue
+
+        variant = None
+        if " - " in line:
+            possible_name, variant_text = line.rsplit(" - ", 1)
+            clean_variant = variant_text.strip()
+            known_variants = {item.lower(): item for item in VARIANTS}
+            if clean_variant.lower() in known_variants:
+                line = possible_name.strip()
+                variant = known_variants[clean_variant.lower()]
+
         qty = 1
         name = line
         parts = line.split(maxsplit=1)
@@ -41,7 +54,8 @@ def parse_bulk_cards(text: str) -> list[tuple[int, str]]:
             if first.isdigit():
                 qty = int(first)
                 name = parts[1].strip()
-        cards.append((qty, name))
+
+        cards.append({"quantity": qty, "card_name_code": name, "variant": variant})
     return cards
 
 
@@ -77,9 +91,11 @@ def create_app() -> Flask:
         g.user = get_user(user_id) if user_id else None
 
     @app.get("/")
-    @login_required
     def index():
-        recent = list_requests(8) if g.user["is_admin"] else list_requests(8, user_id=g.user["id"])
+        if g.user and not g.user["is_admin"]:
+            recent = list_requests(8, user_id=g.user["id"])
+        else:
+            recent = list_requests(8)
         return render_template(
             "index.html",
             languages=LANGUAGES,
@@ -114,7 +130,11 @@ def create_app() -> Flask:
         bulk_text = request.form.get("bulk_cards", "")
         cards = parse_bulk_cards(bulk_text)
         if not cards and request.form.get("card_name_code"):
-            cards = [(int(request.form.get("quantity", 1)), request.form["card_name_code"])]
+            cards = [{
+                "quantity": int(request.form.get("quantity", 1)),
+                "card_name_code": request.form["card_name_code"],
+                "variant": request.form.get("variant"),
+            }]
         required = ["language", "minimum_condition", "variant"]
         missing = [field for field in required if not request.form.get(field)]
         if missing or not cards:
@@ -122,16 +142,16 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
 
         count = 0
-        for quantity, card_name in cards:
+        for card in cards:
             create_request({
                 "email": g.user["email"] or f"{g.user['username']}@local.user",
                 "name": g.user["display_name"],
                 "user_id": g.user["id"],
-                "card_name_code": card_name,
+                "card_name_code": card["card_name_code"],
                 "language": request.form["language"],
-                "quantity": quantity,
+                "quantity": card["quantity"],
                 "minimum_condition": request.form["minimum_condition"],
-                "variant": request.form["variant"],
+                "variant": card["variant"] or request.form["variant"],
                 "seller": request.form.get("seller"),
                 "new_seller": request.form.get("new_seller"),
                 "notes": request.form.get("notes"),
@@ -144,7 +164,25 @@ def create_app() -> Flask:
     @app.get("/admin")
     @admin_required
     def admin():
-        return render_template("admin.html", stats=dashboard_stats(), people=list_people(), users=list_users(), requests=list_requests())
+        return render_template(
+            "admin.html",
+            stats=dashboard_stats(),
+            people=list_people(),
+            users=list_users(),
+            requests=list_requests(),
+            pricing_entries=list_pricing_entries(80),
+        )
+
+    @app.post("/admin/pricing/receipt")
+    @admin_required
+    def import_cardmarket_receipt():
+        rows = parse_cardmarket_receipt(request.form.get("receipt", ""))
+        if not rows:
+            flash("No Cardmarket pricing rows found in that receipt paste.", "error")
+            return redirect(url_for("admin"))
+        count = add_pricing_rows(rows, requester_name=request.form.get("requester_name") or None)
+        flash(f"Imported {count} pricing rows from receipt.", "success")
+        return redirect(url_for("admin"))
 
     @app.post("/admin/users")
     @admin_required

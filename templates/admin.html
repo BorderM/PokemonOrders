@@ -41,6 +41,16 @@
   </div>
 </section>
 
+<section class="card">
+  <h2>Paste Cardmarket receipt</h2>
+  <p class="muted">Paste receipt lines like <code>1x Magnezone Lv.48 (DP 8)</code>, condition code, and euro price. Parsed rows are stored as pricing entries.</p>
+  <form method="post" action="{{ url_for('import_cardmarket_receipt') }}" class="compact-form receipt-form">
+    <label>Requester name for this paste<input name="requester_name" placeholder="Optional, e.g. Mikey"></label>
+    <label>Receipt text<textarea name="receipt" required class="receipt-paste" placeholder="1x    Magnezone Lv.48 (DP 8)&#10;#8&#10;EX&#10;    3,99 €"></textarea></label>
+    <button class="primary" type="submit">Parse receipt</button>
+  </form>
+</section>
+
 <section class="layout">
   <div class="card">
     <h2>User logins</h2>
@@ -66,6 +76,20 @@
       <tbody>
       {% for row in requests %}
         <tr><td>{{ row.id }}</td><td>{{ row.name }}</td><td>{{ row.card_name_code }}</td><td>{{ row.quantity }}</td><td>{{ row.language }}</td><td>{{ row.minimum_condition }}</td><td>{{ row.variant }}</td><td>{{ row.seller or row.new_seller or '' }}</td><td>{{ row.status }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Pricing entries</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Requester</th><th>Card/Product</th><th>Qty</th><th>Condition</th><th>Variant</th><th>Unit</th><th>Total</th><th>Source</th></tr></thead>
+      <tbody>
+      {% for row in pricing_entries %}
+        <tr><td>{{ row.id }}</td><td>{{ row.requester_name or '' }}</td><td>{{ row.card_product }}</td><td>{{ row.quantity }}</td><td>{{ row.requested_condition or '' }}</td><td>{{ row.variant or '' }}</td><td>€{{ '%.2f'|format(row.unit_price or 0) }}</td><td>€{{ '%.2f'|format(row.total_price or 0) }}</td><td>{{ row.source_sheet or '' }}</td></tr>
       {% endfor %}
       </tbody>
     </table>

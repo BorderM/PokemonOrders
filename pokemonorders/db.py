@@ -100,6 +100,12 @@ def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
         ensure_column(conn, "requests", "user_id", "INTEGER REFERENCES users(id)")
+        admin = conn.execute("SELECT id FROM users WHERE username='admin'").fetchone()
+        if not admin:
+            conn.execute(
+                "INSERT INTO users(username, password_hash, display_name, email, is_admin) VALUES (?, ?, ?, ?, ?)",
+                ("admin", generate_password_hash("admin"), "Admin", None, 1),
+            )
 
 
 def upsert_person(email: str, name: str | None = None) -> int:
@@ -213,3 +219,35 @@ def dashboard_stats() -> dict:
             "priced_entries": priced["count"],
             "priced_value": priced["value"],
         }
+
+
+def add_pricing_rows(rows: list[dict], requester_name: str | None = None, source_sheet: str = "cardmarket_receipt") -> int:
+    with connect() as conn:
+        for row in rows:
+            conn.execute(
+                """INSERT INTO pricing_entries(
+                    requester_name, quantity, card_product, requested_condition, variant,
+                    unit_price, total_price, shipping_units, notes, source_sheet
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    requester_name or row.get("requester_name"),
+                    row.get("quantity"),
+                    row["card_product"],
+                    row.get("condition"),
+                    row.get("variant", "Default"),
+                    row.get("unit_price"),
+                    row.get("total_price"),
+                    row.get("shipping_units"),
+                    row.get("notes"),
+                    source_sheet,
+                ),
+            )
+        return len(rows)
+
+
+def list_pricing_entries(limit: int = 300) -> list[sqlite3.Row]:
+    with connect() as conn:
+        return conn.execute(
+            "SELECT * FROM pricing_entries ORDER BY id ASC LIMIT ?",
+            (limit,),
+        ).fetchall()
