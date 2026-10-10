@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Login · PokemonOrders{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <form class="card login-card" method="post">
+    <p class="eyebrow">PokemonOrders</p>
+    <h1>Login</h1>
+    <p class="muted">Use the username/password provided by the admin. Your requests will automatically attach to your account, so names do not need to be typed every time.</p>
+    <label>Username <b>*</b><input required name="username" autocomplete="username"></label>
+    <label>Password <b>*</b><input required name="password" type="password" autocomplete="current-password"></label>
+    <button class="primary" type="submit">Login</button>
+  </form>
+</section>
+{% endblock %}
