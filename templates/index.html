@@ -18,11 +18,11 @@
   <form class="card request-form bulk-form" method="post" action="{{ url_for('submit_request') }}">
     <div class="form-intro wide">
       <h2>New request batch</h2>
-      <p class="muted">One card per line. Optional quantity can go at the start. Add a per-card variant after a pipe, e.g. <code>2 Cramorant (LOR 050) | Reverse Holo</code>. The shared variant below is only used for lines without their own variant.</p>
+      <p class="muted">One card per line. Optional quantity can go at the start. Add a per-card variant after a hyphen, e.g. <code>2 Cramorant (LOR 050) - Reverse Holo</code>. The shared variant below is only used for lines without their own variant.</p>
     </div>
 
     <label class="wide">Cards / products <b>*</b>
-      <textarea required class="bulk-cards" name="bulk_cards" placeholder="Misty's Starmie (DRI 047) | Reverse Holo&#10;2 Cramorant (LOR 050) | Holo&#10;Black Bolt JP Booster Box"></textarea>
+      <textarea required class="bulk-cards" name="bulk_cards" placeholder="Misty's Starmie (DRI 047) - Reverse Holo&#10;2 Cramorant (LOR 050) - Holo&#10;Black Bolt JP Booster Box"></textarea>
     </label>
 
     <label>Language <b>*</b><select required name="language">{% for item in languages %}<option>{{ item }}</option>{% endfor %}</select></label>

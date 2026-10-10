@@ -42,12 +42,12 @@ The uploaded `Poke_Order.xlsx` contains sheets such as:
 Bulk entry examples:
 
 ```text
-Misty's Starmie (DRI 047) | Reverse Holo
-2 Cramorant (LOR 050) | Holo
+Misty's Starmie (DRI 047) - Reverse Holo
+2 Cramorant (LOR 050) - Holo
 Black Bolt JP Booster Box
 ```
 
-Use `| Variant` when a specific line needs a different variant. Lines without a pipe use the selected default variant.
+Use `- Variant` when a specific line needs a different variant. Lines without a recognized variant after the hyphen use the selected default variant, so card names like `Boss's Orders - Ghetsis` stay intact.
 
 ## Run with Docker Compose
 

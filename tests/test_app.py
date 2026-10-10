@@ -31,17 +31,19 @@ def test_submit_requires_login(tmp_path, monkeypatch):
     assert "/login" in resp.headers["Location"]
 
 
-def test_parse_bulk_cards_supports_per_line_variants():
+def test_parse_bulk_cards_supports_hyphen_per_line_variants():
     rows = parse_bulk_cards("""
-    Misty's Starmie (DRI 047) | Reverse Holo
-    2 Cramorant (LOR 050) | Holo
+    Misty's Starmie (DRI 047) - Reverse Holo
+    2 Cramorant (LOR 050) - Holo
     3x Black Bolt JP Booster Box
+    Boss's Orders - Ghetsis (MEG 114)
     """)
 
     assert rows == [
         {"quantity": 1, "card_name_code": "Misty's Starmie (DRI 047)", "variant": "Reverse Holo"},
         {"quantity": 2, "card_name_code": "Cramorant (LOR 050)", "variant": "Holo"},
         {"quantity": 3, "card_name_code": "Black Bolt JP Booster Box", "variant": None},
+        {"quantity": 1, "card_name_code": "Boss's Orders - Ghetsis (MEG 114)", "variant": None},
     ]
 
 
@@ -75,7 +77,7 @@ def test_submit_bulk_request_allows_per_card_variants(tmp_path, monkeypatch):
     login(client)
 
     resp = client.post("/requests", data={
-        "bulk_cards": "Misty's Starmie (DRI 047) | Reverse Holo\n2 Cramorant (LOR 050) | Holo\nMew (FCO 29)",
+        "bulk_cards": "Misty's Starmie (DRI 047) - Reverse Holo\n2 Cramorant (LOR 050) - Holo\nMew (FCO 29)",
         "language": "English",
         "minimum_condition": "Near Mint",
         "variant": "Default",

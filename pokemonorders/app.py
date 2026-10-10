@@ -38,10 +38,13 @@ def parse_bulk_cards(text: str) -> list[dict]:
             continue
 
         variant = None
-        if "|" in line:
-            line, variant_text = line.rsplit("|", 1)
-            line = line.strip()
-            variant = variant_text.strip() or None
+        if " - " in line:
+            possible_name, variant_text = line.rsplit(" - ", 1)
+            clean_variant = variant_text.strip()
+            known_variants = {item.lower(): item for item in VARIANTS}
+            if clean_variant.lower() in known_variants:
+                line = possible_name.strip()
+                variant = known_variants[clean_variant.lower()]
 
         qty = 1
         name = line
