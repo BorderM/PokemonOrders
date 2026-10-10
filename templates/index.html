@@ -18,7 +18,7 @@
   <form class="card request-form bulk-form" method="post" action="{{ url_for('submit_request') }}">
     <div class="form-intro wide">
       <h2>New request batch</h2>
-      <p class="muted">One card per line. Optional quantity can go at the start. Add a per-card variant after a hyphen, e.g. <code>2 Cramorant (LOR 050) - Reverse Holo</code>. The shared variant below is only used for lines without their own variant.</p>
+      <p class="muted">One card per line. Optional quantity can go at the start. Add a per-card variant after a hyphen, e.g. <code>2 Cramorant (LOR 050) - Reverse Holo</code>. The optional default variant below only applies to lines without their own custom variant.</p>
     </div>
 
     <label class="wide">Cards / products <b>*</b>
@@ -27,7 +27,7 @@
 
     <label>Language <b>*</b><select required name="language">{% for item in languages %}<option>{{ item }}</option>{% endfor %}</select></label>
     <label>Minimum Condition / Type <b>*</b><select required name="minimum_condition">{% for item in conditions %}<option>{{ item }}</option>{% endfor %}</select></label>
-    <label>Default variant <b>*</b><select required name="variant">{% for item in variants %}<option>{{ item }}</option>{% endfor %}</select></label>
+    <label>Default variant <span class="optional">optional; only for lines without custom variant</span><select name="variant"><option value="">No default / use Default if blank</option>{% for item in variants %}<option>{{ item }}</option>{% endfor %}</select></label>
     <label>Specific Seller<select name="seller"><option value="">No preference</option>{% for item in sellers %}<option>{{ item }}</option>{% endfor %}</select></label>
     <label>New Seller<input name="new_seller" placeholder="If not listed"></label>
     <label class="wide">Batch notes<textarea name="notes" placeholder="Anything else that applies to this batch?"></textarea></label>

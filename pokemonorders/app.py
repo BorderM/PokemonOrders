@@ -135,7 +135,7 @@ def create_app() -> Flask:
                 "card_name_code": request.form["card_name_code"],
                 "variant": request.form.get("variant"),
             }]
-        required = ["language", "minimum_condition", "variant"]
+        required = ["language", "minimum_condition"]
         missing = [field for field in required if not request.form.get(field)]
         if missing or not cards:
             flash("Add at least one card and fill in all required shared fields.", "error")
@@ -151,7 +151,7 @@ def create_app() -> Flask:
                 "language": request.form["language"],
                 "quantity": card["quantity"],
                 "minimum_condition": request.form["minimum_condition"],
-                "variant": card["variant"] or request.form["variant"],
+                "variant": card["variant"] or request.form.get("variant") or "Default",
                 "seller": request.form.get("seller"),
                 "new_seller": request.form.get("new_seller"),
                 "notes": request.form.get("notes"),
