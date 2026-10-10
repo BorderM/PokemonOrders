@@ -1,11 +1,23 @@
 from __future__ import annotations
 
+from functools import wraps
 from pathlib import Path
 
 import click
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, g, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash
 
-from .db import create_request, dashboard_stats, init_db, list_people, list_requests
+from .db import (
+    create_request,
+    create_user,
+    dashboard_stats,
+    get_user,
+    get_user_by_username,
+    init_db,
+    list_people,
+    list_requests,
+    list_users,
+)
 from .importer import import_workbook
 
 LANGUAGES = ["English", "Japanese", "German", "French", "Italian", "Spanish", "Any"]
@@ -15,13 +27,59 @@ VARIANTS = ["Default", "Reverse Holo", "Holo", "Cosmo", "Ball Reverse", "Other"]
 SELLERS = ["bubusini", "cardmarket", "specific seller not needed"]
 
 
+def parse_bulk_cards(text: str) -> list[tuple[int, str]]:
+    cards: list[tuple[int, str]] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        qty = 1
+        name = line
+        parts = line.split(maxsplit=1)
+        if len(parts) == 2:
+            first = parts[0].lower().rstrip("x")
+            if first.isdigit():
+                qty = int(first)
+                name = parts[1].strip()
+        cards.append((qty, name))
+    return cards
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not g.user:
+            return redirect(url_for("login", next=request.path))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not g.user:
+            return redirect(url_for("login", next=request.path))
+        if not g.user["is_admin"]:
+            flash("Admin access required.", "error")
+            return redirect(url_for("index"))
+        return view(*args, **kwargs)
+    return wrapped
+
+
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
-    app.config["SECRET_KEY"] = "dev-only-change-me"
+    app.config["SECRET_KEY"] = __import__("os").environ.get("POKEMONORDERS_SECRET_KEY", "dev-only-change-me")
     init_db()
 
+    @app.before_request
+    def load_logged_in_user():
+        user_id = session.get("user_id")
+        g.user = get_user(user_id) if user_id else None
+
     @app.get("/")
+    @login_required
     def index():
+        recent = list_requests(8) if g.user["is_admin"] else list_requests(8, user_id=g.user["id"])
         return render_template(
             "index.html",
             languages=LANGUAGES,
@@ -30,25 +88,83 @@ def create_app() -> Flask:
             variants=VARIANTS,
             sellers=SELLERS,
             stats=dashboard_stats(),
-            recent=list_requests(8),
+            recent=recent,
+            user=g.user,
         )
 
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        if request.method == "POST":
+            user = get_user_by_username(request.form.get("username", ""))
+            if user and check_password_hash(user["password_hash"], request.form.get("password", "")):
+                session.clear()
+                session["user_id"] = user["id"]
+                return redirect(request.args.get("next") or url_for("index"))
+            flash("Invalid username or password.", "error")
+        return render_template("login.html")
+
+    @app.post("/logout")
+    def logout():
+        session.clear()
+        return redirect(url_for("login"))
+
     @app.post("/requests")
+    @login_required
     def submit_request():
-        required = ["email", "card_name_code", "language", "quantity", "minimum_condition", "variant"]
+        bulk_text = request.form.get("bulk_cards", "")
+        cards = parse_bulk_cards(bulk_text)
+        if not cards and request.form.get("card_name_code"):
+            cards = [(int(request.form.get("quantity", 1)), request.form["card_name_code"])]
+        required = ["language", "minimum_condition", "variant"]
         missing = [field for field in required if not request.form.get(field)]
-        if missing:
-            flash("Please fill in all required fields: " + ", ".join(missing), "error")
+        if missing or not cards:
+            flash("Add at least one card and fill in all required shared fields.", "error")
             return redirect(url_for("index"))
-        create_request(request.form.to_dict())
-        flash("Request submitted.", "success")
+
+        count = 0
+        for quantity, card_name in cards:
+            create_request({
+                "email": g.user["email"] or f"{g.user['username']}@local.user",
+                "name": g.user["display_name"],
+                "user_id": g.user["id"],
+                "card_name_code": card_name,
+                "language": request.form["language"],
+                "quantity": quantity,
+                "minimum_condition": request.form["minimum_condition"],
+                "variant": request.form["variant"],
+                "seller": request.form.get("seller"),
+                "new_seller": request.form.get("new_seller"),
+                "notes": request.form.get("notes"),
+                "source": "web:bulk" if len(cards) > 1 else "web",
+            })
+            count += 1
+        flash(f"Submitted {count} request line{'s' if count != 1 else ''}.", "success")
         return redirect(url_for("index"))
 
     @app.get("/admin")
+    @admin_required
     def admin():
-        return render_template("admin.html", stats=dashboard_stats(), people=list_people(), requests=list_requests())
+        return render_template("admin.html", stats=dashboard_stats(), people=list_people(), users=list_users(), requests=list_requests())
+
+    @app.post("/admin/users")
+    @admin_required
+    def admin_create_user():
+        required = ["username", "password", "display_name"]
+        if any(not request.form.get(field) for field in required):
+            flash("Username, password, and display name are required.", "error")
+            return redirect(url_for("admin"))
+        create_user(
+            request.form["username"],
+            request.form["password"],
+            request.form["display_name"],
+            request.form.get("email") or None,
+            bool(request.form.get("is_admin")),
+        )
+        flash("User saved.", "success")
+        return redirect(url_for("admin"))
 
     @app.post("/admin/import")
+    @admin_required
     def import_excel():
         upload = request.files.get("workbook")
         if not upload or not upload.filename:
@@ -70,6 +186,16 @@ def create_app() -> Flask:
     def init_db_command():
         init_db()
         print("Database initialized.")
+
+    @app.cli.command("create-user")
+    @click.argument("username")
+    @click.argument("password")
+    @click.option("--name", default=None, help="Display name")
+    @click.option("--email", default=None, help="Optional email")
+    @click.option("--admin", is_flag=True, help="Make the user an admin")
+    def create_user_command(username: str, password: str, name: str | None, email: str | None, admin: bool):
+        user_id = create_user(username, password, name, email, admin)
+        print(f"Saved user {username} with id {user_id}.")
 
     @app.cli.command("import-xlsx")
     @click.argument("path")

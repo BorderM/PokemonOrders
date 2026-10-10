@@ -8,10 +8,16 @@
 </head>
 <body>
   <nav class="topbar">
-    <a class="brand" href="{{ url_for('index') }}">PokemonOrders</a>
+    <a class="brand" href="{{ url_for('index') if g.user else url_for('login') }}">PokemonOrders</a>
     <div class="nav-links">
-      <a href="{{ url_for('index') }}">Request form</a>
-      <a href="{{ url_for('admin') }}">Admin</a>
+      {% if g.user %}
+        <span class="nav-user">{{ g.user.display_name }}</span>
+        <a href="{{ url_for('index') }}">Request form</a>
+        {% if g.user.is_admin %}<a href="{{ url_for('admin') }}">Admin</a>{% endif %}
+        <form method="post" action="{{ url_for('logout') }}"><button class="link-button" type="submit">Logout</button></form>
+      {% else %}
+        <a href="{{ url_for('login') }}">Login</a>
+      {% endif %}
     </div>
   </nav>
   <main class="shell">

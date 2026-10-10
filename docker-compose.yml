@@ -5,6 +5,7 @@ services:
       - "8000:8000"
     environment:
       POKEMONORDERS_DB: /data/pokemonorders.db
+      POKEMONORDERS_SECRET_KEY: change-me-in-production
       FLASK_ENV: development
     volumes:
       - pokemonorders-data:/data

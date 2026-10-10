@@ -5,7 +5,7 @@
   <div>
     <p class="eyebrow">Admin</p>
     <h1>Orders dashboard</h1>
-    <p>Import the existing Excel workbook, review requesters, and track order rows.</p>
+    <p>Manage users, import the existing Excel workbook, review requesters, and track order rows.</p>
   </div>
 </section>
 
@@ -13,11 +13,24 @@
   <div class="metric card"><strong>{{ stats.requests }}</strong><span>Requests</span></div>
   <div class="metric card"><strong>{{ stats.quantity }}</strong><span>Total quantity</span></div>
   <div class="metric card"><strong>{{ stats.people }}</strong><span>People</span></div>
-  <div class="metric card"><strong>{{ stats.priced_entries }}</strong><span>Pricing rows</span></div>
+  <div class="metric card"><strong>{{ stats.users }}</strong><span>User logins</span></div>
   <div class="metric card"><strong>€{{ '%.2f'|format(stats.priced_value or 0) }}</strong><span>Priced total</span></div>
 </section>
 
 <section class="layout">
+  <div class="card">
+    <h2>Create / update user</h2>
+    <p class="muted">Give each person a username/password so requests attach automatically without retyping names.</p>
+    <form method="post" action="{{ url_for('admin_create_user') }}" class="compact-form">
+      <label>Username <b>*</b><input required name="username" placeholder="mikey"></label>
+      <label>Password <b>*</b><input required name="password" type="password" placeholder="temporary password"></label>
+      <label>Display name <b>*</b><input required name="display_name" placeholder="Mikey"></label>
+      <label>Email<input name="email" type="email" placeholder="optional@email.com"></label>
+      <label class="check-row"><input type="checkbox" name="is_admin" value="1"> Admin user</label>
+      <button class="primary" type="submit">Save user</button>
+    </form>
+  </div>
+
   <div class="card">
     <h2>Import Excel</h2>
     <p class="muted">Upload the current workbook. The importer reads People, Orders_Clean, Pricing/archive sheets, and Shipping_Rules.</p>
@@ -26,9 +39,18 @@
       <button class="primary" type="submit">Import workbook</button>
     </form>
   </div>
+</section>
 
+<section class="layout">
   <div class="card">
-    <h2>People</h2>
+    <h2>User logins</h2>
+    <table>
+      <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Admin</th></tr></thead>
+      <tbody>{% for person in users %}<tr><td>{{ person.display_name }}</td><td>{{ person.username }}</td><td>{{ person.email or '' }}</td><td>{{ 'Yes' if person.is_admin else 'No' }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h2>People from imports</h2>
     <table>
       <thead><tr><th>Name</th><th>Email</th></tr></thead>
       <tbody>{% for person in people %}<tr><td>{{ person.name }}</td><td>{{ person.email }}</td></tr>{% endfor %}</tbody>
