@@ -8,6 +8,7 @@ from flask import Flask, flash, g, redirect, render_template, request, session, 
 from werkzeug.security import check_password_hash
 
 from .db import (
+    add_pricing_rows,
     create_request,
     create_user,
     dashboard_stats,
@@ -15,10 +16,12 @@ from .db import (
     get_user_by_username,
     init_db,
     list_people,
+    list_pricing_entries,
     list_requests,
     list_users,
 )
 from .importer import import_workbook
+from .pricing import parse_cardmarket_receipt
 
 LANGUAGES = ["English", "Japanese", "German", "French", "Italian", "Spanish", "Any"]
 QUANTITIES = list(range(1, 13))
@@ -77,9 +80,11 @@ def create_app() -> Flask:
         g.user = get_user(user_id) if user_id else None
 
     @app.get("/")
-    @login_required
     def index():
-        recent = list_requests(8) if g.user["is_admin"] else list_requests(8, user_id=g.user["id"])
+        if g.user and not g.user["is_admin"]:
+            recent = list_requests(8, user_id=g.user["id"])
+        else:
+            recent = list_requests(8)
         return render_template(
             "index.html",
             languages=LANGUAGES,
@@ -144,7 +149,25 @@ def create_app() -> Flask:
     @app.get("/admin")
     @admin_required
     def admin():
-        return render_template("admin.html", stats=dashboard_stats(), people=list_people(), users=list_users(), requests=list_requests())
+        return render_template(
+            "admin.html",
+            stats=dashboard_stats(),
+            people=list_people(),
+            users=list_users(),
+            requests=list_requests(),
+            pricing_entries=list_pricing_entries(80),
+        )
+
+    @app.post("/admin/pricing/receipt")
+    @admin_required
+    def import_cardmarket_receipt():
+        rows = parse_cardmarket_receipt(request.form.get("receipt", ""))
+        if not rows:
+            flash("No Cardmarket pricing rows found in that receipt paste.", "error")
+            return redirect(url_for("admin"))
+        count = add_pricing_rows(rows, requester_name=request.form.get("requester_name") or None)
+        flash(f"Imported {count} pricing rows from receipt.", "success")
+        return redirect(url_for("admin"))
 
     @app.post("/admin/users")
     @admin_required

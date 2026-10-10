@@ -1,5 +1,5 @@
 from pokemonorders.app import create_app
-from pokemonorders.db import create_user, dashboard_stats, list_requests
+from pokemonorders.db import create_user, dashboard_stats, get_user_by_username, list_pricing_entries, list_requests
 
 
 def make_app(tmp_path, monkeypatch):
@@ -11,9 +11,22 @@ def login(client, username="person", password="secret"):
     return client.post("/login", data={"username": username, "password": password}, follow_redirects=True)
 
 
-def test_login_required_for_request_form(tmp_path, monkeypatch):
+def test_default_admin_exists_and_public_dashboard_loads(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
-    resp = app.test_client().get("/")
+    client = app.test_client()
+
+    assert get_user_by_username("admin") is not None
+    assert client.post("/login", data={"username": "admin", "password": "admin"}, follow_redirects=True).status_code == 200
+
+    client.post("/logout")
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert b"Recent requests" in resp.data
+
+
+def test_submit_requires_login(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    resp = app.test_client().post("/requests", data={"bulk_cards": "Mew (FCO 29)"})
     assert resp.status_code == 302
     assert "/login" in resp.headers["Location"]
 
@@ -66,3 +79,31 @@ def test_admin_page_requires_admin(tmp_path, monkeypatch):
     login(client)
     resp = client.get("/admin", follow_redirects=True)
     assert b"Admin access required." in resp.data
+
+
+def test_admin_can_parse_cardmarket_receipt_into_pricing_rows(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    create_user("boss", "secret", "Boss", "boss@example.com", is_admin=True)
+    client = app.test_client()
+    login(client, "boss", "secret")
+
+    receipt = """
+    1x    Magnezone Lv.48 (DP 8)
+    #8
+    EX
+        3,99 €
+    1x    Silvally GX (CEC 262)
+    #262
+    GD
+        14,99 €
+    """
+    resp = client.post("/admin/pricing/receipt", data={"receipt": receipt, "requester_name": "Mikey"}, follow_redirects=True)
+
+    assert resp.status_code == 200
+    assert b"Imported 2 pricing rows from receipt." in resp.data
+    rows = list_pricing_entries()
+    assert len(rows) == 2
+    assert rows[0]["requester_name"] == "Mikey"
+    assert rows[0]["card_product"] == "Magnezone Lv.48 (DP 8)"
+    assert rows[0]["requested_condition"] == "Excellent"
+    assert rows[0]["total_price"] == 3.99

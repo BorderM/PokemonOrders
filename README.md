@@ -59,19 +59,34 @@ http://localhost:8000
 
 Data is stored in a SQLite database under the Docker volume `pokemonorders-data`.
 
-## Create the first admin user
+## Default admin user
 
-After the container is running:
+The app creates a default admin login automatically:
 
-```bash
-docker compose exec web flask --app pokemonorders.app create-user admin CHANGE_ME --name "Admin" --admin
+```text
+username: admin
+password: admin
 ```
 
-Local equivalent:
+This keeps local/dev setup simple. Change it later from the admin user form or by running `create-user` again with a stronger password.
+
+CLI example:
 
 ```bash
-flask --app pokemonorders.app create-user admin CHANGE_ME --name "Admin" --admin
+flask --app pokemonorders.app create-user admin NEW_PASSWORD --name "Admin" --admin
 ```
+
+Docker equivalent:
+
+```bash
+docker compose exec web flask --app pokemonorders.app create-user admin NEW_PASSWORD --name "Admin" --admin
+```
+
+## Public/requester access
+
+- Anyone can view the request overview and quantities.
+- Users must log in to add requests, so their cards attach to the right person automatically.
+- Admin users can create logins, import Excel, and paste Cardmarket receipt/pricing data.
 
 ## Run locally without Docker
 
@@ -80,7 +95,6 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 flask --app pokemonorders.app init-db
-flask --app pokemonorders.app create-user admin CHANGE_ME --name "Admin" --admin
 flask --app pokemonorders.app run --debug
 ```
 
@@ -95,6 +109,19 @@ flask --app pokemonorders.app import-xlsx /path/to/Poke_Order.xlsx
 ```
 
 The importer does not need the original file committed to the repo. Do **not** commit real order spreadsheets because they contain personal emails/order data.
+
+## Paste Cardmarket receipt pricing
+
+Admins can paste receipt text in the admin page. The parser supports receipt blocks like:
+
+```text
+1x    Magnezone Lv.48 (DP 8)
+#8
+EX
+    3,99 €
+```
+
+It converts condition codes such as `EX`, `GD`, and `NM`, parses comma-decimal euro prices, and stores quantity, card/product, condition, unit price, and total price as pricing entries.
 
 ## Tests
 
