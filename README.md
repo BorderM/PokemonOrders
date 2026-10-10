@@ -30,10 +30,10 @@ The uploaded `Poke_Order.xlsx` contains sheets such as:
 1. Admin creates a user login for each requester.
 2. Requester logs in on desktop or mobile.
 3. Requester pastes one or more cards/products into the batch box.
-4. Shared fields apply to the whole batch:
+4. Shared fields apply to the whole batch unless a line overrides the variant:
    - language
    - condition/type
-   - variant
+   - default variant
    - seller/new seller
    - notes
 5. App stores separate request rows linked to the logged-in user.
@@ -42,10 +42,12 @@ The uploaded `Poke_Order.xlsx` contains sheets such as:
 Bulk entry examples:
 
 ```text
-Misty's Starmie (DRI 047)
-2 Cramorant (LOR 050)
+Misty's Starmie (DRI 047) | Reverse Holo
+2 Cramorant (LOR 050) | Holo
 Black Bolt JP Booster Box
 ```
+
+Use `| Variant` when a specific line needs a different variant. Lines without a pipe use the selected default variant.
 
 ## Run with Docker Compose
 

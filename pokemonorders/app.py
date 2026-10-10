@@ -30,12 +30,19 @@ VARIANTS = ["Default", "Reverse Holo", "Holo", "Cosmo", "Ball Reverse", "Other"]
 SELLERS = ["bubusini", "cardmarket", "specific seller not needed"]
 
 
-def parse_bulk_cards(text: str) -> list[tuple[int, str]]:
-    cards: list[tuple[int, str]] = []
+def parse_bulk_cards(text: str) -> list[dict]:
+    cards: list[dict] = []
     for raw in text.splitlines():
         line = raw.strip()
         if not line:
             continue
+
+        variant = None
+        if "|" in line:
+            line, variant_text = line.rsplit("|", 1)
+            line = line.strip()
+            variant = variant_text.strip() or None
+
         qty = 1
         name = line
         parts = line.split(maxsplit=1)
@@ -44,7 +51,8 @@ def parse_bulk_cards(text: str) -> list[tuple[int, str]]:
             if first.isdigit():
                 qty = int(first)
                 name = parts[1].strip()
-        cards.append((qty, name))
+
+        cards.append({"quantity": qty, "card_name_code": name, "variant": variant})
     return cards
 
 
@@ -119,7 +127,11 @@ def create_app() -> Flask:
         bulk_text = request.form.get("bulk_cards", "")
         cards = parse_bulk_cards(bulk_text)
         if not cards and request.form.get("card_name_code"):
-            cards = [(int(request.form.get("quantity", 1)), request.form["card_name_code"])]
+            cards = [{
+                "quantity": int(request.form.get("quantity", 1)),
+                "card_name_code": request.form["card_name_code"],
+                "variant": request.form.get("variant"),
+            }]
         required = ["language", "minimum_condition", "variant"]
         missing = [field for field in required if not request.form.get(field)]
         if missing or not cards:
@@ -127,16 +139,16 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
 
         count = 0
-        for quantity, card_name in cards:
+        for card in cards:
             create_request({
                 "email": g.user["email"] or f"{g.user['username']}@local.user",
                 "name": g.user["display_name"],
                 "user_id": g.user["id"],
-                "card_name_code": card_name,
+                "card_name_code": card["card_name_code"],
                 "language": request.form["language"],
-                "quantity": quantity,
+                "quantity": card["quantity"],
                 "minimum_condition": request.form["minimum_condition"],
-                "variant": request.form["variant"],
+                "variant": card["variant"] or request.form["variant"],
                 "seller": request.form.get("seller"),
                 "new_seller": request.form.get("new_seller"),
                 "notes": request.form.get("notes"),

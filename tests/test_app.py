@@ -1,4 +1,4 @@
-from pokemonorders.app import create_app
+from pokemonorders.app import create_app, parse_bulk_cards
 from pokemonorders.db import create_user, dashboard_stats, get_user_by_username, list_pricing_entries, list_requests
 
 
@@ -31,6 +31,20 @@ def test_submit_requires_login(tmp_path, monkeypatch):
     assert "/login" in resp.headers["Location"]
 
 
+def test_parse_bulk_cards_supports_per_line_variants():
+    rows = parse_bulk_cards("""
+    Misty's Starmie (DRI 047) | Reverse Holo
+    2 Cramorant (LOR 050) | Holo
+    3x Black Bolt JP Booster Box
+    """)
+
+    assert rows == [
+        {"quantity": 1, "card_name_code": "Misty's Starmie (DRI 047)", "variant": "Reverse Holo"},
+        {"quantity": 2, "card_name_code": "Cramorant (LOR 050)", "variant": "Holo"},
+        {"quantity": 3, "card_name_code": "Black Bolt JP Booster Box", "variant": None},
+    ]
+
+
 def test_submit_bulk_request_uses_logged_in_user(tmp_path, monkeypatch):
     app = make_app(tmp_path, monkeypatch)
     create_user("person", "secret", "Person", "person@example.com")
@@ -52,6 +66,28 @@ def test_submit_bulk_request_uses_logged_in_user(tmp_path, monkeypatch):
     rows = list_requests()
     assert {row["quantity"] for row in rows} == {1, 2}
     assert {row["name"] for row in rows} == {"Person"}
+
+
+def test_submit_bulk_request_allows_per_card_variants(tmp_path, monkeypatch):
+    app = make_app(tmp_path, monkeypatch)
+    create_user("person", "secret", "Person", "person@example.com")
+    client = app.test_client()
+    login(client)
+
+    resp = client.post("/requests", data={
+        "bulk_cards": "Misty's Starmie (DRI 047) | Reverse Holo\n2 Cramorant (LOR 050) | Holo\nMew (FCO 29)",
+        "language": "English",
+        "minimum_condition": "Near Mint",
+        "variant": "Default",
+        "seller": "bubusini",
+    }, follow_redirects=True)
+
+    assert resp.status_code == 200
+    rows = list_requests()
+    variants_by_card = {row["card_name_code"]: row["variant"] for row in rows}
+    assert variants_by_card["Misty's Starmie (DRI 047)"] == "Reverse Holo"
+    assert variants_by_card["Cramorant (LOR 050)"] == "Holo"
+    assert variants_by_card["Mew (FCO 29)"] == "Default"
 
 
 def test_admin_can_create_user_from_web(tmp_path, monkeypatch):
