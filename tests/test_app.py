@@ -68,6 +68,7 @@ def test_submit_bulk_request_uses_logged_in_user(tmp_path, monkeypatch):
     rows = list_requests()
     assert {row["quantity"] for row in rows} == {1, 2}
     assert {row["name"] for row in rows} == {"Person"}
+    assert {row["variant"] for row in rows} == {"Reverse Holo"}
 
 
 def test_submit_bulk_request_allows_per_card_variants(tmp_path, monkeypatch):
