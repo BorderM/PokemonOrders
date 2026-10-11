@@ -47,7 +47,7 @@ Misty's Starmie (DRI 047) - Reverse Holo
 Black Bolt JP Booster Box
 ```
 
-Use `- Variant` when a specific line needs a different variant. Lines without a recognized variant after the hyphen use the selected default variant, so card names like `Boss's Orders - Ghetsis` stay intact.
+Use `- Variant` when a specific line needs a manual variant. Variant precedence is: manual line variant > selected dropdown variant > `Default` when the dropdown is blank. Lines without a recognized variant after the hyphen use the dropdown/default behavior, so card names like `Boss's Orders - Ghetsis` stay intact.
 
 ## Run with Docker Compose
 
